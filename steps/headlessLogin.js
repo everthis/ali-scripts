@@ -13,10 +13,14 @@ const ALI_PASSWORD = process.env.ALI_PASSWORD
 async function headlessLogin(...cbFnArr) {
   const browser = await puppeteer.launch({
     headless: false,
-    devtools: true,
+    // devtools: true,
     args: ['--enable-sandbox', '--disable-setuid-sandbox']
   })
   const page = await browser.newPage()
+  await page.setViewport({
+    width: 1920,
+    height: 1200
+  })
   //   await page.emulate(iPhoneX)
   await page.goto(ALI_LOGIN_URL)
 
@@ -29,7 +33,7 @@ async function headlessLogin(...cbFnArr) {
 
   await page.waitFor(1366 + Math.random() * 150)
 
-  await Promise.race([myHome(page), anotherTry(page)])
+  await Promise.race([myHome(page, browser), anotherTry(page)])
 
   const cookies = await page.cookies()
 
@@ -41,16 +45,25 @@ function anotherTry(page) {
   return page.waitForSelector('#J-errorBox .sl-error-text').then(async d => {
     console.log('failed')
     await tryLogin(page).then(async d => {
-      await myHome(page)
+      await myHome(page, browser)
     })
   })
 }
 
-async function myHome(page) {
+async function myHome(page, browser) {
   await page.waitForSelector('#globalContainer')
   await page.waitFor(253 + Math.random() * 120)
   await page.waitForSelector('#J-assets-balance')
   await sc(page, 'home')
+
+  const newPagePromise = new Promise(x =>
+    browser.once('targetcreated', target => x(target.page()))
+  )
+  await page.click('#J-trend-tabs .more')
+  // await page.goto('https://consumeprod.alipay.com/record/advanced.htm')
+  const newPage = await newPagePromise
+  await newPage.waitForSelector('#tradeRecordsIndex')
+  await sc(newPage, 'list')
   console.log('success')
 }
 
@@ -65,12 +78,12 @@ async function tryLogin(page) {
 
   await input.click({ clickCount: 3 })
 
-  await page.type('#J-input-user', ALI_USERNAME, { delay: Math.random() * 120 })
-  await page.waitFor(786 + Math.random() * 100)
+  await page.type('#J-input-user', ALI_USERNAME, { delay: Math.random() * 160 })
+  await page.waitFor(1786 + Math.random() * 100)
   await page.waitForSelector('#password_rsainput')
   await page.click('#password_rsainput')
   await page.type('#password_rsainput', ALI_PASSWORD, {
-    delay: Math.random() * 120
+    delay: Math.random() * 180
   })
   await page.waitForSelector('#J-login-btn')
   await sc(page, 'post')
@@ -81,7 +94,8 @@ async function tryLogin(page) {
 async function sc(page, name) {
   await page.screenshot({
     path: `${name}.jpeg`,
-    type: 'jpeg'
+    type: 'jpeg',
+    fullPage: true
   })
 }
 
